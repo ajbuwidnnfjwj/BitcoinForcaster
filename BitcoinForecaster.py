@@ -8,7 +8,7 @@ from sklearn import preprocessing
 import matplotlib.pyplot as plt
 import pyupbit
 
-def plotLoss(model, criterion=nn.MSELoss()):
+def plotLoss(model, criterion=nn.MSELoss()) -> None:
     optimizer = optim.Adam(model.parameters(), lr=model.lr)
     loss_graph = []
     for e in range(model.epoch):
@@ -31,26 +31,28 @@ def plotLoss(model, criterion=nn.MSELoss()):
         plt.show()
 
 
-def plotting(train_loader, test_loader, actual):
+def plotting(d) -> int:
     with torch.no_grad():
         train_pred = []
         test_pred = []
 
-        for data in train_loader:
+        for data in d.loaderset[0]:
             seq, target = data
             out = model(seq)
-            train_pred += out.cpu().numpy().tolist()
+            train_pred += out.numpy().tolist()
 
-        for data in test_loader:
+        for data in d.loaderset[1]:
             seq, target = data
             out = model(seq)
-            test_pred += out.cpu().numpy().tolist()
+            test_pred += out.numpy().tolist()
 
     total = train_pred + test_pred
+    rescaled_total = d.scalerY.inverse_transform(np.array(total).reshape(-1,1))
+    rescaled_actual = d.scalerY.inverse_transform(d.dataY.reshape(-1,1))
     plt.figure(figsize=(20,10))
     plt.plot(np.ones(100)*len(train_pred), np.linspace(0,1,100), '--', linewidth=0.6)
-    plt.plot(actual, '--')
-    plt.plot(total, 'b', linewidth=0.6)
+    plt.plot(rescaled_actual, '--')
+    plt.plot(rescaled_total, 'b', linewidth=0.6)
 
     plt.legend(['train boundary', 'actual', 'prediction'])
     plt.show()
@@ -63,8 +65,7 @@ if __name__ == '__main__':
     model = Model.VanillaRNN(input_size=input_size,
                              hidden_size=8,
                              sequence_length=d.seq_length,
-                             num_layers=2,
-                             device=d.device)
+                             num_layers=2)
     plotLoss(model)
     df = pyupbit.get_ohlcv("KRW-BTC", interval="day200").reset_index()
-    print(plotting(d.loaderset[0], d.loaderset[1], d.scaler.fit_transform(df[['close']])))
+    print(plotting(d))

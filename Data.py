@@ -7,12 +7,13 @@ class xData:
     def __init__(self, seq_length):
         self.seq_length = seq_length
         df = pyupbit.get_ohlcv("KRW-BTC", interval="day200").reset_index()
-        self.scaler = preprocessing.MinMaxScaler()
-        df[['open', 'high', 'low', 'volume', 'close']] = self.scaler.fit_transform(
-            df[['open', 'high', 'low', 'volume', 'close']])
+        self.scalerX = preprocessing.MinMaxScaler()
+        df[['open', 'high', 'low', 'volume']] = self.scalerX.fit_transform(
+            df[['open', 'high', 'low', 'volume']])
+        self.scalerY = preprocessing.MinMaxScaler()
+        df[['close']] = self.scalerY.fit_transform(df[['close']])
         self.dataX = df[['open', 'high', 'low', 'volume']].values
         self.dataY = df['close'].values
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     def build_dataset(self):
         x_seq = []
@@ -20,7 +21,7 @@ class xData:
         for i in range(len(self.dataX) - self.seq_length):
             x_seq.append(self.dataX[i: i + self.seq_length])
             y_seq.append(self.dataY[i + self.seq_length])
-        return torch.FloatTensor(x_seq).to(self.device), torch.FloatTensor(y_seq).to(self.device).view([-1, 1])
+        return torch.FloatTensor(x_seq), torch.FloatTensor(y_seq).view([-1, 1])
 
 
 class Data(xData):
