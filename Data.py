@@ -1,32 +1,43 @@
-import matplotlib.pyplot as plt
 import pyupbit
-import pandas as pd
+from sklearn import preprocessing
+import torch
 
-class Data():
-    def __init__(self) -> None:
-        self.df = pyupbit.get_ohlcv("KRW-BTC", interval="day200").reset_index()
-        self.diff_list = [self.df['close'].diff().dropna()]
-        for i in range(3):
-            self.diff_list.append(self.diff_list[i].diff().dropna())
-        
-    def getClose(self) -> pd.DataFrame:
-        return self.df['close']
 
-    def getVolume(self) -> pd.DataFrame:
-        return self.df['volume']
-        
-class DataVisualiser(Data):
-    def __init__(self) -> None:
-        super().__init__()    
-    
-    def show_price(self) -> None:
-        plt.plot(self.df['index'], self.df['close'])
-        plt.show()
-    
-    def show_volume(self) -> None:
-        plt.plot(self.df['index'], self.df['volume'])
+class xData:
+    def __init__(self, seq_length):
+        self.seq_length = seq_length
+        df = pyupbit.get_ohlcv("KRW-BTC", interval="day200").reset_index()
+        self.scaler = preprocessing.MinMaxScaler()
+        df[['open', 'high', 'low', 'volume', 'close']] = self.scaler.fit_transform(
+            df[['open', 'high', 'low', 'volume', 'close']])
+        self.dataX = df[['open', 'high', 'low', 'volume']].values
+        self.dataY = df['close'].values
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    def show_diff(self) -> None:
-        for d in range(self.diff_list):
-            plt.plot(d)
-            plt.show()
+    def build_dataset(self):
+        x_seq = []
+        y_seq = []
+        for i in range(len(self.dataX) - self.seq_length):
+            x_seq.append(self.dataX[i: i + self.seq_length])
+            y_seq.append(self.dataY[i + self.seq_length])
+        return torch.FloatTensor(x_seq).to(self.device), torch.FloatTensor(y_seq).to(self.device).view([-1, 1])
+
+
+class Data(xData):
+    def __init__(self, seq_length, split, batch_size):
+        super().__init__(seq_length)
+        self.batch_size = batch_size
+        x_seq, y_seq = self.build_dataset()
+        self.x_train_seq = x_seq[:split]
+        self.y_train_seq = y_seq[:split]
+        self.x_test_seq = x_seq[split:]
+        self.y_test_seq = y_seq[split:]
+        self.loaderset = []
+
+    def getTrainset(self):
+        train = torch.utils.data.TensorDataset(self.x_train_seq, self.y_train_seq)
+        test = torch.utils.data.TensorDataset(self.x_test_seq, self.y_test_seq)
+        train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=self.batch_size, shuffle=False)
+        test_loader = torch.utils.data.DataLoader(dataset=test, batch_size=self.batch_size, shuffle=False)
+        self.loaderset = [train_loader, test_loader]
+        return self.loaderset
