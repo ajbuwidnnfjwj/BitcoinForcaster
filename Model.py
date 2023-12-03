@@ -1,14 +1,22 @@
-from statsmodels.tsa.arima.model import ARIMA
-from Data import Data 
+import torch
+import torch.nn as nn
 
-class Model(Data):
-    def __init__(self) -> None:
-        super().__init__()
-        self.model = ARIMA(self.df['close'], order = (1,len(self.diff_list)-1,1))
-        self.model_fit = self.model.fit()
 
-    def summary(self) -> None:
-        return self.model_fit.summary()    
+class VanillaRNN(nn.Module):
+    def __init__(self, input_size, hidden_size, sequence_length, num_layers, device,
+                 lr=1e-3, epoch=200):
+        super(VanillaRNN, self).__init__()
+        self.device = device
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Sequential(nn.Linear(hidden_size * sequence_length, 1), nn.Sigmoid())
+        self.epoch = epoch
+        self.lr = lr
 
-    def forecast(self) -> list:
-        return self.model_fit.forecast()
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size()[0], self.hidden_size).to(self.device)  # 초기 hidden state 설정하기.
+        out, _ = self.rnn(x, h0)  # out: RNN의 마지막 레이어로부터 나온 output feature 를 반환한다. hn: hidden state를 반환한다.
+        out = out.reshape(out.shape[0], -1)  # many to many 전략
+        out = self.fc(out)
+        return out
