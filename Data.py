@@ -7,6 +7,8 @@ from datetime import timedelta
 import urllib.request
 import json
 
+
+#call coin value data from upbit
 class coinData:
     def __init__(self, seq_length):
         self.seq_length = seq_length
@@ -16,20 +18,13 @@ class coinData:
             df[['open', 'high', 'low', 'volume']])
         self.scalerY = preprocessing.MinMaxScaler()
         df[['close']] = self.scalerY.fit_transform(df[['close']])
-        self.dataX = df[['open', 'high', 'low', 'volume']].values
+        self.dataX = df[['volume', 'close']].values
         self.dataY = df['close'].values
 
-    def build_dataset(self):
-        x_seq = []
-        y_seq = []
-        for i in range(len(self.dataX) - self.seq_length):
-            x_seq.append(self.dataX[i: i + self.seq_length])
-            y_seq.append(self.dataY[i + self.seq_length])
-        return torch.FloatTensor(x_seq), torch.FloatTensor(y_seq).view([-1, 1])
 
-
+#call NAVER trend ratio
 class trendData:
-    def __init__(self, *keyword_arg):
+    def __init__(self, keyword_arg):
         self.__keyword_arg = list(keyword_arg)
         interval = timedelta(days=199)
         today = datetime.date.today()
@@ -40,22 +35,20 @@ class trendData:
             'keywordGroups':None
         }
         self.respose = None
+        self.trend_rat = []
 
     def getTrendRatio(self):
         rescode = self.__makeRequest()
         if rescode == 200:
             json_obj = json.loads(self.response.read().decode('utf-8'))
-            trend_rat = []
             for ratio in json_obj['results'][0]['data']:
-                trend_rat.append(ratio['ratio'])
+                self.trend_rat.append(ratio['ratio'])
 
-            for i in range(0,200-len(trend_rat)):
-                trend_rat.append(trend_rat[-1])
-            trend_rat = np.array([trend_rat])
-            return trend_rat
+            for i in range(0,200-len(self.trend_rat)):
+                self.trend_rat.append(self.trend_rat[-1])
+            self.trend_rat = np.array([self.trend_rat])
         else:
             print("Naver API Request Fail. Exit with Error Code "+rescode)
-            return None
 
     def __makeBody(self):
         keyword = {}
@@ -75,21 +68,33 @@ class trendData:
         return self.response.getcode()
 
 
-class Data(coinData):
-    def __init__(self, seq_length, split, batch_size):
-        super().__init__(seq_length)
+class Data(coinData, trendData):
+    def __init__(self, seq_length, split, batch_size, *args):
+        coinData.__init__(self, seq_length)
+        trendData.__init__(self, args)
         self.batch_size = batch_size
-        x_seq, y_seq = self.build_dataset()
-        self.x_train_seq = x_seq[:split]
-        self.y_train_seq = y_seq[:split]
-        self.x_test_seq = x_seq[split:]
-        self.y_test_seq = y_seq[split:]
-        self.loaderset = []
+        self.split = split  #for test
+        self.input_size=0
+        self.x_seq = []; self.y_seq = []
+        self.train_loader=None
 
     def getTrainset(self):
-        train = torch.utils.data.TensorDataset(self.x_train_seq, self.y_train_seq)
-        test = torch.utils.data.TensorDataset(self.x_test_seq, self.y_test_seq)
-        train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=self.batch_size, shuffle=False)
-        test_loader = torch.utils.data.DataLoader(dataset=test, batch_size=self.batch_size, shuffle=False)
-        self.loaderset = [train_loader, test_loader]
-        return self.loaderset
+        self.getTrendRatio()
+        self.trend_rat = self.trend_rat.reshape(200,1)
+        self.dataX = np.c_[self.dataX, self.trend_rat]
+        for i in range(len(self.dataX)-self.seq_length):
+            self.x_seq.append(self.dataX[i:i+self.seq_length])
+            self.y_seq.append(self.dataY[i+self.seq_length])
+
+        self.x_seq=np.array(self.x_seq); self.y_seq=np.array(self.y_seq)
+        x_seq = torch.FloatTensor(self.x_seq); self.input_size = x_seq.size(2)
+        y_seq = torch.FloatTensor(self.y_seq).view([-1,1])
+        train = torch.utils.data.TensorDataset(x_seq, y_seq)
+        self.train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=self.batch_size, shuffle=False)
+        return self.train_loader
+    
+    def getPredictSet(self):
+        temp = self.x_seq[-1].tolist()
+        print(temp)
+        data = torch.FloatTensor(temp)
+        return data
