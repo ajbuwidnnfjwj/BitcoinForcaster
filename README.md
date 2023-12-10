@@ -47,3 +47,6 @@ BitcoinForecaster.py를 실제 실행하면 다음과 같은 창이 나와요.
 실제 가격과 예측가격을 시각화 했어요.
 ![Result](./Image/result.png)
 콘솔 출력이에요. 내일 9시의 비트코인 가격을 54711092원으로 예측하고있어요.
+
+## 참고자료
+https://data-science-hi.tistory.com/190
