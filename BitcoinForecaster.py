@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 
-def plotLoss(model, criterion=nn.MSELoss()) -> None:
+def plotLoss(model, d, criterion=nn.MSELoss()) -> None:
     optimizer = optim.Adam(model.parameters(), lr=model.lr)
     loss_graph = []
     for e in range(model.epoch):
@@ -22,14 +22,14 @@ def plotLoss(model, criterion=nn.MSELoss()) -> None:
             running_loss += loss.item()
             loss_graph.append(running_loss / len(d.train_loader)) # 한 epoch에 모든 배치들에 대한 평균 loss 리스트에 담고,
 
-    # if model.epoch % 100 == 0:
-    #     print('[epoch: %d] loss: %.4f'%(model.epoch, running_loss/len(d.train_loader)))
-    #     plt.figure(figsize=(20,10))
-    #     plt.plot(loss_graph)
-    #     plt.show()
+    if model.epoch % 100 == 0:
+        print('[epoch: %d] loss: %.4f'%(model.epoch, running_loss/len(d.train_loader)))
+        plt.figure(figsize=(20,10))
+        plt.plot(loss_graph)
+        plt.show()
 
 
-def plotting(d) -> int:
+def plotting(d, model) -> int:
     with torch.no_grad():
         pred = [[0] for _ in range(d.seq_length)]
 
@@ -39,13 +39,13 @@ def plotting(d) -> int:
             pred += out.numpy().tolist()
     rescaled_pred = d.scalerY.inverse_transform(np.array(pred).reshape(-1,1))
     rescaled_actual = d.scalerY.inverse_transform(d.dataY.reshape(-1,1))
-    # plt.figure(figsize=(20,10))
-    #plt.plot(np.ones(100)*len(pred), np.linspace(0,1,100), '--', linewidth=0.6)
-    # plt.plot(rescaled_actual, 'r--')
-    # plt.plot(rescaled_pred, 'b', linewidth=0.6)
+    plt.figure(figsize=(20,10))
+    plt.plot(np.ones(100)*len(pred), np.linspace(0,1,100), '--', linewidth=0.6)
+    plt.plot(rescaled_actual, 'r--')
+    plt.plot(rescaled_pred, 'b', linewidth=0.6)
 
-    # plt.legend(['actual', 'prediction'])
-    # plt.show()
+    plt.legend(['actual', 'prediction'])
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -56,6 +56,8 @@ if __name__ == '__main__':
                              hidden_size=8,
                              sequence_length=d.seq_length,
                              num_layers=2)
-    plotLoss(model)
-    plotting(d)
-    d.getPredictSet()
+    plotLoss(model, d)
+    plotting(d, model)
+    out = model(d.PredictSet).detach().numpy()
+    fut_price = d.scalerY.inverse_transform(out)
+    print("Price For Tommorow 9:00AM(KST): {}".format(fut_price[0,0]))

@@ -78,6 +78,7 @@ class Data(coinData, trendData):
         self.x_seq = []; self.y_seq = []
         self.train_loader=None
 
+
     def getTrainset(self):
         self.getTrendRatio()
         self.trend_rat = self.trend_rat.reshape(200,1)
@@ -93,8 +94,7 @@ class Data(coinData, trendData):
         self.train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=self.batch_size, shuffle=False)
         return self.train_loader
     
-    def getPredictSet(self):
-        temp = self.x_seq[-1].tolist()
-        print(temp)
-        data = torch.FloatTensor(temp)
-        return data
+    @property
+    def PredictSet(self):
+        temp = np.array([self.x_seq[-1]])
+        return torch.FloatTensor(temp)
