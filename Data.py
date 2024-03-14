@@ -61,8 +61,8 @@ class trendData:
     def __makeRequest(self) -> int:
         body = self.__makeBody()
         request = urllib.request.Request("https://openapi.naver.com/v1/datalab/search")
-        request.add_header("X-Naver-Client-Id","SdSA3fxVZrSyqUrZoD81")
-        request.add_header("X-Naver-Client-Secret","0ipG8dAvMV")
+        request.add_header("X-Naver-Client-Id"," ")
+        request.add_header("X-Naver-Client-Secret"," ")
         request.add_header("Content-Type","application/json")
         self.response = urllib.request.urlopen(request, data=body.encode("utf-8"))
         return self.response.getcode()
