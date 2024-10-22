@@ -36,8 +36,9 @@ class trendData:
         }
         self.respose = None
         self.trend_rat = []
+        self.__getTrendRatio()
 
-    def getTrendRatio(self):
+    def __getTrendRatio(self):
         rescode = self.__makeRequest()
         if rescode == 200:
             json_obj = json.loads(self.response.read().decode('utf-8'))
@@ -75,20 +76,21 @@ class Data(coinData, trendData):
         self.batch_size = batch_size
         self.split = split  #for test
         self.input_size=0
-        self.x_seq = []; self.y_seq = []
+        self.x_seq = []
+        self.y_seq = []
         self.train_loader=None
 
-
     def getTrainset(self):
-        self.getTrendRatio()
         self.trend_rat = self.trend_rat.reshape(200,1)
         self.dataX = np.c_[self.dataX, self.trend_rat]
         for i in range(len(self.dataX)-self.seq_length):
             self.x_seq.append(self.dataX[i:i+self.seq_length])
             self.y_seq.append(self.dataY[i+self.seq_length])
 
-        self.x_seq=np.array(self.x_seq); self.y_seq=np.array(self.y_seq)
-        x_seq = torch.FloatTensor(self.x_seq); self.input_size = x_seq.size(2)
+        self.x_seq=np.array(self.x_seq)
+        self.y_seq=np.array(self.y_seq)
+        x_seq = torch.FloatTensor(self.x_seq)
+        self.input_size = x_seq.size(2)
         y_seq = torch.FloatTensor(self.y_seq).view([-1,1])
         train = torch.utils.data.TensorDataset(x_seq, y_seq)
         self.train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=self.batch_size, shuffle=False)
