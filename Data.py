@@ -1,3 +1,5 @@
+from os.path import split
+
 import pyupbit
 from sklearn import preprocessing
 import numpy as np
@@ -105,3 +107,9 @@ class Data(coinData, trendData):
         assert 0 < self.split <= 1, 'variable split out of bound'
         split_len = int(len(self.dataX) * self.split)
         return self.dataY[self.seq_length + split_len:]
+
+    @property
+    def label_for_test(self):
+        assert 0 < self.split <= 1, 'variable split out of bound'
+        split_len = int(len(self.dataX) * self.split)
+        return self.dataY[split_len:]

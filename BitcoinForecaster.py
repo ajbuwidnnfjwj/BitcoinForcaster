@@ -49,6 +49,6 @@ if __name__ == '__main__':
             for j in i:
                 tensor_for_plot.append(j)
 
-    plt.plot(d.dataY[int(d.split*len(d.dataY)):])
+    plt.plot(d.label_for_test)
     plt.plot(tensor_for_plot)
     plt.show()
