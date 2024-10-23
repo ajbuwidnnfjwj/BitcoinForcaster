@@ -8,6 +8,7 @@ import urllib.request
 import json
 
 import naver_api_id
+from test_file import sequence_length
 
 
 #call coin value data from upbit
@@ -19,7 +20,7 @@ class coinData:
             df[['open', 'high', 'low', 'volume']])
         df[['close']] = self.scaler.fit_transform(df[['close']])
         self.dataX = df[['volume', 'close']].values
-        self.dataY = df['close'].values
+        self.dataY = df[['close']].values
 
 
 #call NAVER trend ratio
@@ -77,12 +78,8 @@ class Data(coinData, trendData):
         self.seq_length = seq_length
         self.trend_rat = self.trend_rat.reshape(200,1)
         self.dataX = np.c_[self.dataX, self.trend_rat]
-        self.dataX = torch.tensor([
-            self.dataX[i:i+seq_length] for i in range(len(self.dataX)-seq_length)
-        ], dtype=torch.float32)
-        self.dataY = torch.tensor([
-            self.dataY[i+seq_length] for i in range(len(self.dataY)-seq_length)
-        ], dtype=torch.float32)
+        self.dataX = torch.tensor([self.dataX[i:i+sequence_length, :] for i in range(200-sequence_length)]).float()
+        self.dataY = torch.tensor([self.dataY[i+sequence_length, :] for i in range(200-sequence_length)]).float()
         self.input_size = self.dataX.size(2)
 
     @property
@@ -95,7 +92,7 @@ class Data(coinData, trendData):
     def predict_set(self):
         assert 0 < self.split <= 1, 'variable split out of bound'
         split_len = int(len(self.dataX) * self.split)
-        return self.dataX[split_len:]
+        return self.dataX[split_len:len(self.dataX)-self.seq_length]
 
     @property
     def train_label(self):
@@ -107,4 +104,4 @@ class Data(coinData, trendData):
     def predict_label(self):
         assert 0 < self.split <= 1, 'variable split out of bound'
         split_len = int(len(self.dataX) * self.split)
-        return self.dataY[split_len:]
+        return self.dataY[self.seq_length + split_len:]
