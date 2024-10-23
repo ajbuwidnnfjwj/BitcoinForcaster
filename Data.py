@@ -70,25 +70,41 @@ class trendData:
 
 
 class Data(coinData, trendData):
-    def __init__(self, seq_length, *args):
+    def __init__(self, seq_length, split, *args):
         coinData.__init__(self)
         trendData.__init__(self, args)
-
+        self.split = split
+        self.seq_length = seq_length
         self.trend_rat = self.trend_rat.reshape(200,1)
         self.dataX = np.c_[self.dataX, self.trend_rat]
         self.dataX = torch.tensor([
             self.dataX[i:i+seq_length] for i in range(len(self.dataX)-seq_length)
-        ])
+        ], dtype=torch.float32)
+        self.dataY = torch.tensor([
+            self.dataY[i+seq_length] for i in range(len(self.dataY)-seq_length)
+        ], dtype=torch.float32)
         self.input_size = self.dataX.size(2)
 
     @property
-    def train_set(self, split):
-        assert 0 < split <= 1, 'variable split out of bound'
-        split_len = int(len(self.dataX) * split)
+    def train_set(self):
+        assert 0 < self.split <= 1, 'variable split out of bound'
+        split_len = int(len(self.dataX) * self.split)
         return self.dataX[:split_len]
 
     @property
-    def predict_set(self, split):
-        assert 0 < split <= 1, 'variable split out of bound'
-        split_len = int(len(self.dataX) * split)
+    def predict_set(self):
+        assert 0 < self.split <= 1, 'variable split out of bound'
+        split_len = int(len(self.dataX) * self.split)
         return self.dataX[split_len:]
+
+    @property
+    def train_label(self):
+        assert 0 < self.split <= 1, 'variable split out of bound'
+        split_len = int(len(self.dataX) * self.split)
+        return self.dataY[:split_len]
+
+    @property
+    def predict_label(self):
+        assert 0 < self.split <= 1, 'variable split out of bound'
+        split_len = int(len(self.dataX) * self.split)
+        return self.dataY[split_len:]

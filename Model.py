@@ -3,15 +3,12 @@ import torch.nn as nn
 
 
 class VanillaRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, sequence_length, num_layers,
-                 lr=1e-3, epoch=200):
+    def __init__(self, input_size, hidden_size, sequence_length, num_layers):
         super(VanillaRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Sequential(nn.Linear(hidden_size * sequence_length, 1), nn.Sigmoid())
-        self.epoch = epoch
-        self.lr = lr
+        self.fc = nn.Sequential(nn.Linear(hidden_size * sequence_length, 1))
 
     def forward(self, x):
         h0 = torch.zeros(self.num_layers, x.size()[0], self.hidden_size)  # 초기 hidden state 설정하기.
