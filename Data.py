@@ -7,17 +7,17 @@ from datetime import timedelta
 import urllib.request
 import json
 
+import naver_api_id
+
 
 #call coin value data from upbit
 class coinData:
-    def __init__(self, seq_length):
-        self.seq_length = seq_length
+    def __init__(self):
         df = pyupbit.get_ohlcv("KRW-BTC", interval="day200").reset_index()
-        self.scalerX = preprocessing.MinMaxScaler()
-        df[['open', 'high', 'low', 'volume']] = self.scalerX.fit_transform(
+        self.scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
+        df[['open', 'high', 'low', 'volume']] = self.scaler.fit_transform(
             df[['open', 'high', 'low', 'volume']])
-        self.scalerY = preprocessing.MinMaxScaler()
-        df[['close']] = self.scalerY.fit_transform(df[['close']])
+        df[['close']] = self.scaler.fit_transform(df[['close']])
         self.dataX = df[['volume', 'close']].values
         self.dataY = df['close'].values
 
@@ -62,41 +62,33 @@ class trendData:
     def __makeRequest(self) -> int:
         body = self.__makeBody()
         request = urllib.request.Request("https://openapi.naver.com/v1/datalab/search")
-        request.add_header("X-Naver-Client-Id"," ")
-        request.add_header("X-Naver-Client-Secret"," ")
+        request.add_header("X-Naver-Client-Id",f"{naver_api_id.X_CLIENT_ID}")
+        request.add_header("X-Naver-Client-Secret",f"{naver_api_id.X_CLIENT_SECRETE}")
         request.add_header("Content-Type","application/json")
         self.response = urllib.request.urlopen(request, data=body.encode("utf-8"))
         return self.response.getcode()
 
 
 class Data(coinData, trendData):
-    def __init__(self, seq_length, split, batch_size, *args):
-        coinData.__init__(self, seq_length)
+    def __init__(self, seq_length, *args):
+        coinData.__init__(self)
         trendData.__init__(self, args)
-        self.batch_size = batch_size
-        self.split = split  #for test
-        self.input_size=0
-        self.x_seq = []
-        self.y_seq = []
-        self.train_loader=None
 
-    def getTrainset(self):
         self.trend_rat = self.trend_rat.reshape(200,1)
         self.dataX = np.c_[self.dataX, self.trend_rat]
-        for i in range(len(self.dataX)-self.seq_length):
-            self.x_seq.append(self.dataX[i:i+self.seq_length])
-            self.y_seq.append(self.dataY[i+self.seq_length])
+        self.dataX = torch.tensor([
+            self.dataX[i:i+seq_length] for i in range(len(self.dataX)-seq_length)
+        ])
+        self.input_size = self.dataX.size(2)
 
-        self.x_seq=np.array(self.x_seq)
-        self.y_seq=np.array(self.y_seq)
-        x_seq = torch.FloatTensor(self.x_seq)
-        self.input_size = x_seq.size(2)
-        y_seq = torch.FloatTensor(self.y_seq).view([-1,1])
-        train = torch.utils.data.TensorDataset(x_seq, y_seq)
-        self.train_loader = torch.utils.data.DataLoader(dataset=train, batch_size=self.batch_size, shuffle=False)
-        return self.train_loader
-    
     @property
-    def PredictSet(self):
-        temp = np.array([self.x_seq[-1]])
-        return torch.FloatTensor(temp)
+    def train_set(self, split):
+        assert 0 < split <= 1, 'variable split out of bound'
+        split_len = int(len(self.dataX) * split)
+        return self.dataX[:split_len]
+
+    @property
+    def predict_set(self, split):
+        assert 0 < split <= 1, 'variable split out of bound'
+        split_len = int(len(self.dataX) * split)
+        return self.dataX[split_len:]
